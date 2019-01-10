@@ -5,6 +5,7 @@ import com.alexb.model.User;
 import com.alexb.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.camel.Header;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
 import org.apache.camel.builder.RouteBuilder;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import static java.util.Objects.isNull;
 import static org.apache.camel.Exchange.EXCEPTION_CAUGHT;
 import static org.apache.camel.Exchange.HTTP_RESPONSE_CODE;
+import static org.apache.camel.builder.PredicateBuilder.not;
 import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON_UTF8_VALUE;
 
@@ -32,6 +34,14 @@ public class UserRoute extends RouteBuilder {
         interceptFrom()
                 .log(LoggingLevel.INFO, "intercepted");
 
+
+//        interceptFrom("rest:*")
+//                .filter(not(header("ss")))
+//                    .to("log:HEADER")
+//                    .stop()
+//                    .end()
+//                .log(LoggingLevel.INFO, "REQUEST PASSED");
+
         // @formatter:off
         rest("/users")
                 .get()
@@ -42,6 +52,7 @@ public class UserRoute extends RouteBuilder {
                 .endRest()
                 .get("/{id}")
                     .route()
+                    .filter(method(this,"check"))
                     .id("Get user by id")
                     .setProperty("value", constant("value")) // pass a clazz
                     .bean(userService,"getById")
@@ -65,9 +76,16 @@ public class UserRoute extends RouteBuilder {
                 .stop();
 
         onCompletion()
-                .onWhen(hasNoExceptions)
-                .process(ex -> {});
+                .onWhen(not(header(EXCEPTION_CAUGHT)))
+                .process(ex -> {
+                    System.out.println(1);
+                });
         // @formatter:on
+    }
+
+     public boolean check(@Header("id") String id) {
+        log.info(id);
+        return true;
     }
 }
 
